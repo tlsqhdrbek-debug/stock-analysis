@@ -13,13 +13,23 @@ import { mockAnalyze } from "./mock";
 
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
 
+// 서버 컴포넌트(SSR)에선 절대 URL로 백엔드 직접 호출,
+// 클라이언트에선 next.config.mjs rewrite(/api/backend/*) 경유.
+function backendUrl(path: string): string {
+  if (typeof window === "undefined") {
+    const base = process.env.BACKEND_URL || "http://localhost:8000";
+    return `${base}/api${path}`;
+  }
+  return `/api/backend${path}`;
+}
+
 export async function analyze(ticker: string): Promise<AnalyzeResponse> {
   if (USE_MOCK) {
     // 실제 네트워크 지연 흉내
     await new Promise((r) => setTimeout(r, 120));
     return { ...mockAnalyze, ticker: ticker || mockAnalyze.ticker };
   }
-  const res = await fetch(`/api/backend/analyze/${ticker}`, {
+  const res = await fetch(backendUrl(`/analyze/${ticker}`), {
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`analyze ${ticker} failed: ${res.status}`);
@@ -50,7 +60,7 @@ export async function search(q: string): Promise<SearchHit[]> {
     );
   }
   const res = await fetch(
-    `/api/backend/search?q=${encodeURIComponent(q)}`,
+    backendUrl(`/search?q=${encodeURIComponent(q)}`),
     { cache: "no-store" },
   );
   if (!res.ok) throw new Error(`search failed: ${res.status}`);
