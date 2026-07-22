@@ -1,5 +1,7 @@
+import Link from "next/link";
 import type { AnalyzeResponse } from "@/lib/types";
 import { fmt, fmtMcap, fmtVol, fmtPct } from "@/lib/format";
+import { WatchStar } from "./WatchStar";
 
 export function StockHeader({ data }: { data: AnalyzeResponse }) {
   const up = data.change >= 0;
@@ -12,7 +14,7 @@ export function StockHeader({ data }: { data: AnalyzeResponse }) {
       <path d="M12 5v14M5 12l7 7 7-7" />
     </svg>
   );
-  const changeBg = up ? "bg-[#2A1215] border-bull-border" : "bg-[#0F1A2E] border-bear-border";
+  const changeBg = up ? "bg-[#331B22] border-bull-border" : "bg-[#1B2540] border-bear-border";
   const priceColor = up ? "text-bull" : "text-bear-fg";
   const changeColor = up ? "text-bull" : "text-bear-fg";
   const dt = new Date(data.asOf);
@@ -24,15 +26,15 @@ export function StockHeader({ data }: { data: AnalyzeResponse }) {
     <div className="mb-7 flex flex-wrap items-end justify-between gap-8">
       <div>
         <div className="mb-3 flex items-center gap-3">
-          <button
-            type="button"
-            aria-label="뒤로"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-strong bg-elevated text-fg-muted"
+          <Link
+            href="/screener"
+            aria-label="종목 목록으로"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-strong bg-elevated text-fg-muted shadow-tile transition-colors hover:text-fg"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
-          </button>
+          </Link>
           <span className="rounded-full border border-border-strong bg-elevated px-2.5 py-1 text-[12px] text-fg-dim">
             {data.market}
           </span>
@@ -46,11 +48,7 @@ export function StockHeader({ data }: { data: AnalyzeResponse }) {
         </div>
         <div className="mb-2 flex items-baseline gap-4">
           <h1 className="m-0 text-[34px] font-bold tracking-tight2">{data.name}</h1>
-          <button type="button" aria-label="관심종목" className="border-0 bg-transparent p-0 text-warn">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2l2.9 6.9L22 10l-5.5 4.8L18.2 22 12 18.3 5.8 22l1.7-7.2L2 10l7.1-1.1L12 2z" />
-            </svg>
-          </button>
+          <WatchStar ticker={data.ticker} name={data.name} />
         </div>
         <div className="flex items-baseline gap-3.5">
           <span className={`tnum text-[40px] font-bold tracking-tight2 ${priceColor}`}>
@@ -86,7 +84,7 @@ export function StockHeader({ data }: { data: AnalyzeResponse }) {
 
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="rounded-lg border border-border-strong bg-elevated px-3 py-2 text-[12px]">
+    <div className="rounded-lg border border-border-strong bg-elevated px-3 py-2 text-[12px] shadow-tile">
       <div className="mb-0.5 text-fg-dim">{label}</div>
       <div className={`tnum font-semibold ${color}`}>{value}</div>
     </div>

@@ -6,8 +6,8 @@
 
 html,
 body {
-  background: #0a0b0f;
-  color: #e6e8ee;
+  background: linear-gradient(180deg, #1c2334 0%, #131722 420px) fixed #131722;
+  color: #eceef4;
   font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     system-ui, sans-serif;
   font-feature-settings: "ss03", "tnum";

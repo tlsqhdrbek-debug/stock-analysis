@@ -46,8 +46,8 @@ export function CandleChart({ data }: { data: AnalyzeResponse }) {
     const yy = y(v);
     gridLines.push(
       <g key={`g-${i}`}>
-        <line x1={PAD_L} x2={W - PAD_R} y1={yy} y2={yy} stroke="#1A1D26" strokeWidth={1} />
-        <text x={PAD_L - 8} y={yy + 3} fill="#5B6472" fontSize={10} textAnchor="end">
+        <line x1={PAD_L} x2={W - PAD_R} y1={yy} y2={yy} stroke="#272E3F" strokeWidth={1} />
+        <text x={PAD_L - 8} y={yy + 3} fill="#7E88A0" fontSize={10} textAnchor="end">
           {v.toLocaleString()}
         </text>
       </g>,
@@ -117,7 +117,7 @@ export function CandleChart({ data }: { data: AnalyzeResponse }) {
       const d = new Date(candles[i].t);
       const label = `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
       return (
-        <text key={`d-${i}`} x={x} y={volBase + volH + 16} fill="#5B6472" fontSize={10} textAnchor="middle">
+        <text key={`d-${i}`} x={x} y={volBase + volH + 16} fill="#7E88A0" fontSize={10} textAnchor="middle">
           {label}
         </text>
       );
@@ -125,7 +125,7 @@ export function CandleChart({ data }: { data: AnalyzeResponse }) {
   );
 
   return (
-    <div className="mb-5 rounded-card border border-border bg-surface p-6">
+    <div className="mb-5 rounded-card border border-border bg-surface p-6 shadow-card">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-4">
           <span className="text-[15px] font-semibold">캔들 + 이동평균선</span>
@@ -174,8 +174,8 @@ export function CandleChart({ data }: { data: AnalyzeResponse }) {
               {data.currentPrice.toLocaleString()}
             </text>
           </g>
-          <line x1={PAD_L} x2={W - PAD_R} y1={volBase} y2={volBase} stroke="#1A1D26" />
-          <text x={PAD_L - 8} y={volBase + 12} fill="#5B6472" fontSize={10} textAnchor="end">
+          <line x1={PAD_L} x2={W - PAD_R} y1={volBase} y2={volBase} stroke="#272E3F" />
+          <text x={PAD_L - 8} y={volBase + 12} fill="#7E88A0" fontSize={10} textAnchor="end">
             VOL
           </text>
           {volEls}

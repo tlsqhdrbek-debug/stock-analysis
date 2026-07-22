@@ -6,20 +6,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // 배경 스케일 (다크 전용)
-        base: "#0A0B0F",
-        surface: "#0F1119",
-        elevated: "#12141C",
+        // 배경 스케일 (다크 테마 v2 — 밝기·입체감 조정)
+        base: "#131722",
+        surface: "#1A1F2D",
+        elevated: "#232A3B",
         border: {
-          DEFAULT: "#1A1D26",
-          strong: "#1F2330",
-          stronger: "#2A2F3D",
+          DEFAULT: "#272E3F",
+          strong: "#333C52",
+          stronger: "#43506C",
         },
         // 텍스트
         fg: {
-          DEFAULT: "#E6E8EE",
-          muted: "#8B93A3",
-          dim: "#5B6472",
+          DEFAULT: "#ECEEF4",
+          muted: "#9AA3B8",
+          dim: "#6E7995",
         },
         // 방향성 (한국식: 상방=빨강, 하방=파랑)
         bull: {
@@ -65,6 +65,12 @@ const config: Config = {
       borderRadius: {
         card: "16px",
         chip: "10px",
+      },
+      boxShadow: {
+        // 입체감: 상단 하이라이트(inset) + 아래 드롭섀도
+        card: "inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 32px rgba(0,0,0,0.38)",
+        tile: "inset 0 1px 0 rgba(255,255,255,0.05), 0 3px 10px rgba(0,0,0,0.28)",
+        lift: "inset 0 1px 0 rgba(255,255,255,0.07), 0 10px 24px rgba(0,0,0,0.45)",
       },
       letterSpacing: {
         tightish: "-0.01em",

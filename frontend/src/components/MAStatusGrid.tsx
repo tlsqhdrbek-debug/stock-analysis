@@ -15,7 +15,7 @@ export function MAStatusGrid({ data }: { data: AnalyzeResponse }) {
   const rows = data.maStatus[tf].ma;
 
   return (
-    <div className="flex-1 rounded-card border border-border bg-surface px-6 py-5">
+    <div className="flex-1 rounded-card border border-border bg-surface px-6 py-5 shadow-card">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-[14px] font-semibold">이동평균선 상태</span>
@@ -48,7 +48,7 @@ export function MAStatusGrid({ data }: { data: AnalyzeResponse }) {
           return (
             <div
               key={ma.label}
-              className="relative rounded-xl border border-border-strong bg-elevated px-3 py-3.5"
+              className="relative rounded-xl border border-border-strong bg-elevated px-3 py-3.5 shadow-tile"
             >
               <div className="mb-2.5 flex items-center justify-between">
                 <span className="text-[12px] font-semibold text-fg-muted">{ma.label}</span>

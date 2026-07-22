@@ -21,7 +21,7 @@ export function SummaryCard({ data }: { data: AnalyzeResponse }) {
   });
 
   return (
-    <div className="relative overflow-hidden rounded-card border border-border-strong bg-gradient-to-b from-[#141821] to-surface px-7 py-6">
+    <div className="relative overflow-hidden rounded-card border border-border-strong bg-gradient-to-b from-[#222A3D] to-surface px-7 py-6 shadow-card">
       <div
         aria-hidden
         className="pointer-events-none absolute -right-10 -top-10 h-[220px] w-[220px]"

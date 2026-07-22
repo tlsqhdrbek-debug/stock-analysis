@@ -1,6 +1,6 @@
 export function Disclaimer() {
   return (
-    <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-border bg-surface px-4 py-3.5">
+    <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-border bg-surface px-4 py-3.5 shadow-tile">
       <svg
         width="16"
         height="16"

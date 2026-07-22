@@ -24,7 +24,7 @@ function Icon({ paths }: { paths: string[] }) {
 export function SignalCards({ data }: { data: AnalyzeResponse }) {
   const signals = data.activeSignals;
   return (
-    <div className="mb-5 rounded-card border border-border bg-surface p-6">
+    <div className="mb-5 rounded-card border border-border bg-surface p-6 shadow-card">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <span className="text-[15px] font-semibold">발동 중인 신호</span>
@@ -44,7 +44,7 @@ export function SignalCards({ data }: { data: AnalyzeResponse }) {
           return (
             <div
               key={i}
-              className={`relative overflow-hidden rounded-xl border bg-elevated p-4 ${border}`}
+              className={`relative overflow-hidden rounded-xl border bg-elevated p-4 shadow-tile ${border}`}
             >
               <div
                 aria-hidden

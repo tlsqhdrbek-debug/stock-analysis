@@ -13,16 +13,16 @@
 | .gitignore / .env.example / .env | ✅ |
 | design/ 시안 보존 | ✅ |
 | frontend/ Next.js 14 이관 (목업) | ✅ |
-| docker-compose (postgres) | ⏳ |
-| KIS 클라이언트 (토큰 캐시·일봉) | ⏳ |
-| 지표 계산 (MA/MACD/RSI) | ⏳ |
-| 신호·스코어링 | ⏳ |
-| FastAPI `/api/analyze/{ticker}` | ⏳ |
-| lib/api.ts를 실제 백엔드 연결 | ⏳ |
+| KIS 클라이언트 (토큰 캐시·일봉) | ✅ |
+| 지표 계산 (MA/MACD/RSI) | ✅ |
+| 신호·스코어링 | ✅ |
+| FastAPI `/api/analyze/{ticker}` | ✅ (일봉) |
+| lib/api.ts를 실제 백엔드 연결 | ✅ |
+| DB 캐시 (장중 5분/장외 60분) | ✅ Supabase |
+| 뉴스 수집 (네이버 검색 API) | ✅ |
+| sectors.yaml 매크로 매핑 | ✅ |
+| 검색·관심종목·스크리너·설정 UI | ✅ |
 | 분봉(60/240) + MTF 정합성 | ⏳ |
-| DB 캐시 (5분 TTL) | ⏳ |
-| 뉴스 수집 | ⏳ |
-| sectors.yaml 매크로 매핑 | ⏳ |
 
 ## 디렉토리
 
@@ -36,22 +36,33 @@ stock-analysis/
 └── .gitignore
 ```
 
-## 빠른 실행 (프론트 목업만)
+## 로컬 실행
 
 ```bash
+# 터미널 1 — 백엔드 (Windows는 반드시 run.py로: psycopg 이벤트루프 이슈)
+cd backend
+.venv/Scripts/python run.py          # http://localhost:8000
+
+# 터미널 2 — 프론트엔드
 cd frontend
 npm install
-npm run dev
-# → http://localhost:3000 (자동으로 /analyze/005930 리다이렉트)
+npm run dev                          # http://localhost:3000
 ```
 
-지금은 `NEXT_PUBLIC_USE_MOCK=true` 기본이라 백엔드 없이 삼성전자 목업 데이터로 전체 UI가 뜹니다.
+프론트 실데이터 모드는 `frontend/.env.local`:
+
+```
+NEXT_PUBLIC_USE_MOCK=false
+BACKEND_URL=http://localhost:8000
+```
+
+`.env.local`이 없으면 목업 데이터로 동작합니다 (백엔드 불필요).
 
 ## 기술 스택
 
 - **Backend**: Python 3.11, FastAPI, httpx, pandas, numpy, SQLAlchemy, Pydantic v2
 - **Frontend**: Next.js 14 · TypeScript · Tailwind CSS
-- **DB**: PostgreSQL (로컬 docker, 프로덕션 Neon 예정)
+- **DB**: Supabase PostgreSQL (분석 캐시)
 - **테스트**: pytest (지표·신호 커버리지 80% 목표)
 
 ## 데이터 소스

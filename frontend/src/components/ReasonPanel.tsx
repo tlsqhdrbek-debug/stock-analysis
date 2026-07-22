@@ -16,8 +16,8 @@ export function ReasonPanel({
   const iconBg = bull ? "bg-bull-softer" : "bg-bear-softer";
   const border = bull ? "border-bull-softer" : "border-bear-softer";
   const grad = bull
-    ? "from-[#1A0F12] to-surface"
-    : "from-[#0F131F] to-surface";
+    ? "from-[#2B1E27] to-surface"
+    : "from-[#1D2740] to-surface";
   const bg = bull ? "bg-bull-soft" : "bg-bear-soft";
   const weightBg = bull ? "bg-bull-soft" : "bg-bear-soft";
   const heading = bull ? "상방 근거" : "하방 근거";
@@ -34,7 +34,7 @@ export function ReasonPanel({
   );
 
   return (
-    <div className={`rounded-card border ${border} bg-gradient-to-b ${grad} p-6`}>
+    <div className={`rounded-card border ${border} bg-gradient-to-b ${grad} p-6 shadow-card`}>
       <div className="mb-5 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconBg}`}>
@@ -78,7 +78,7 @@ function ReasonList({
       {reasons.map((r, i) => (
         <div
           key={i}
-          className="flex gap-3 rounded-chip border border-border-strong bg-elevated px-3.5 py-3"
+          className="flex gap-3 rounded-chip border border-border-strong bg-elevated px-3.5 py-3 shadow-tile"
         >
           <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${bg} ${tone}`}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>

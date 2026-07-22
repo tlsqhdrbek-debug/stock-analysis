@@ -18,7 +18,7 @@ function formatDate(iso: string): string {
 
 export function NewsGrid({ ticker, name, news }: { ticker: string; name: string; news: NewsItem[] }) {
   return (
-    <div className="rounded-card border border-border bg-surface p-6">
+    <div className="rounded-card border border-border bg-surface p-6 shadow-card">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <span className="text-[15px] font-semibold">최근 뉴스</span>
@@ -30,6 +30,11 @@ export function NewsGrid({ ticker, name, news }: { ticker: string; name: string;
           전체 보기 →
         </a>
       </div>
+      {news.length === 0 && (
+        <div className="rounded-xl border border-border-strong bg-elevated p-6 text-center text-[12px] text-fg-dim shadow-tile">
+          최근 7일 내 관련 뉴스가 없습니다.
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-3">
         {news.map((n, i) => (
           <a
@@ -37,7 +42,7 @@ export function NewsGrid({ ticker, name, news }: { ticker: string; name: string;
             href={n.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="block rounded-xl border border-border-strong bg-elevated p-4 text-inherit"
+            className="block rounded-xl border border-border-strong bg-elevated p-4 text-inherit shadow-tile transition-all hover:-translate-y-0.5 hover:border-stronger hover:shadow-lift"
           >
             <div className="mb-2.5 flex items-center gap-2">
               {n.tag && (
