@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     kis_account_no: str = ""
     kis_env: str = "real"  # real | paper (paper는 별도 앱키 필요 — ADR-1)
     database_url: str = "postgresql://postgres:postgres@localhost:5432/stockdb"
+    direct_url: str = ""  # Supabase session-mode pooler (마이그레이션용)
+    naver_client_id: str = ""
+    naver_client_secret: str = ""
 
     @property
     def kis_base_url(self) -> str:

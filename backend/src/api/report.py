@@ -16,6 +16,7 @@ from src.schemas import (
     ChartData,
     Chip,
     MAStatusItem,
+    NewsItem,
     Probability,
     Reason,
     ReasonGroup,
@@ -44,6 +45,7 @@ def build_response(
     candles: list[dict],
     name: str,
     sector: str | None,
+    news: list["NewsItem"] | None = None,
 ) -> AnalyzeResponse:
     closes = np.array([c["close"] for c in candles], dtype=np.float64)
     lows = np.array([c["low"] for c in candles], dtype=np.float64)
@@ -101,7 +103,7 @@ def build_response(
         active_signals=active,
         bullish_reasons=ReasonGroup(technical=bull_tech, macro=bull_macro),
         bearish_reasons=ReasonGroup(technical=bear_tech, macro=bear_macro),
-        news=[],  # TODO(step 11): 뉴스 수집기 연결
+        news=news or [],
         chart_data=_chart_data(candles, mas),
     )
 
