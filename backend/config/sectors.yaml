@@ -1,0 +1,92 @@
+# 섹터 ↔ 매크로 이슈 정적 매핑 (Phase 1).
+# Phase 3에서 Claude 기반 동적 서술로 교체 예정.
+# weight: 스코어 breakdown 표시용 (확률 계산에는 미반영 — 기술적 신호만 반영)
+
+반도체:
+  bull:
+    - title: "반도체 업황 사이클"
+      desc: "메모리 가격·AI 서버 수요가 업종 방향성에 우호적으로 작용할 수 있음"
+      weight: 10
+    - title: "환율 여건"
+      desc: "원화 약세 국면에서 수출 비중이 큰 반도체는 상대적으로 유리"
+      weight: 6
+  bear:
+    - title: "대중 수출 규제 리스크"
+      desc: "미국의 반도체 수출규제 강화 논의는 중국 매출 비중이 큰 기업에 부담"
+      weight: 8
+    - title: "금리 민감도"
+      desc: "미 국채금리 상승 구간에서 성장주 밸류에이션 부담 확대"
+      weight: 7
+
+2차전지:
+  bull:
+    - title: "전기차 침투율 확대"
+      desc: "글로벌 전기차 전환 흐름은 중장기 수요 기반"
+      weight: 9
+  bear:
+    - title: "전방 수요 둔화"
+      desc: "전기차 판매 성장 둔화 시 배터리 소재 실적 추정치 하향 위험"
+      weight: 9
+    - title: "리튬 등 원자재 가격 변동"
+      desc: "메탈 가격 하락은 판가 연동 매출에 부정적"
+      weight: 7
+
+자동차:
+  bull:
+    - title: "환율 우호"
+      desc: "원화 약세는 완성차 수출 채산성에 긍정적"
+      weight: 8
+  bear:
+    - title: "관세·통상 리스크"
+      desc: "주요 수출 시장의 관세 정책 변화는 실적 변동 요인"
+      weight: 8
+
+바이오:
+  bull:
+    - title: "기술수출 모멘텀"
+      desc: "라이선스 아웃 계약 체결 시 큰 폭의 리레이팅 가능"
+      weight: 9
+  bear:
+    - title: "임상 이벤트 리스크"
+      desc: "임상 결과에 따라 변동성이 매우 큰 업종"
+      weight: 10
+
+금융:
+  bull:
+    - title: "주주환원 정책 강화"
+      desc: "밸류업 프로그램·배당 확대는 금융주 재평가 요인"
+      weight: 8
+  bear:
+    - title: "금리 하락 시 마진 축소"
+      desc: "기준금리 인하 국면에서 순이자마진(NIM) 축소 우려"
+      weight: 7
+
+조선:
+  bull:
+    - title: "수주 사이클 호조"
+      desc: "친환경 선박 교체 수요와 선가 상승 사이클"
+      weight: 9
+  bear:
+    - title: "후판 가격 상승"
+      desc: "원자재 가격 상승은 마진 압박 요인"
+      weight: 6
+
+방산:
+  bull:
+    - title: "글로벌 방산 수요 확대"
+      desc: "지정학 리스크 지속으로 수출 파이프라인 견조"
+      weight: 9
+  bear:
+    - title: "수주 인도 일정 변동"
+      desc: "대형 계약의 인도 지연은 분기 실적 변동성 요인"
+      weight: 5
+
+default:
+  bull:
+    - title: "시장 유동성 여건"
+      desc: "금리 인하 기대는 주식시장 전반에 우호적"
+      weight: 5
+  bear:
+    - title: "대외 불확실성"
+      desc: "환율·금리·지정학 변수에 따른 변동성 확대 가능"
+      weight: 5
