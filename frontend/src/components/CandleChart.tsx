@@ -1,6 +1,8 @@
 "use client";
 
-import type { AnalyzeResponse } from "@/lib/types";
+import { useEffect, useState } from "react";
+import { fetchCandles, type ChartTF } from "@/lib/api";
+import type { AnalyzeResponse, ChartData } from "@/lib/types";
 
 const MA_COLORS: Record<string, string> = {
   "5": "#F5A524",
@@ -11,41 +13,141 @@ const MA_COLORS: Record<string, string> = {
   "200": "#8B93A3",
 };
 
-const LEGEND = [
-  ["MA5", "#F5A524"],
-  ["MA10", "#F97066"],
-  ["MA20", "#7DD87D"],
-  ["MA60", "#5B7CFF"],
-  ["MA120", "#C084FC"],
-  ["MA200", "#8B93A3"],
-] as const;
+const TABS: { key: ChartTF; label: string }[] = [
+  { key: "M", label: "월봉" },
+  { key: "W", label: "주봉" },
+  { key: "D", label: "일봉" },
+  { key: "240", label: "240분" },
+  { key: "60", label: "60분" },
+];
+
+function niceStep(range: number): number {
+  const raw = range / 5;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const m of [1, 2, 5, 10]) {
+    if (raw <= m * mag) return m * mag;
+  }
+  return 10 * mag;
+}
 
 export function CandleChart({ data }: { data: AnalyzeResponse }) {
+  const [tf, setTf] = useState<ChartTF>("D");
+  const [charts, setCharts] = useState<Partial<Record<ChartTF, ChartData>>>({
+    D: data.chartData,
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (charts[tf]) return;
+    let alive = true;
+    setLoading(true);
+    setError(null);
+    fetchCandles(data.ticker, tf)
+      .then((cd) => alive && setCharts((p) => ({ ...p, [tf]: cd })))
+      .catch(() => alive && setError("차트 데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요."))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [tf, data.ticker, charts]);
+
+  const chart = charts[tf];
+  const isMinute = tf === "60" || tf === "240";
+
+  return (
+    <div className="mb-5 rounded-card border border-border bg-surface p-4 shadow-card md:p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="text-[15px] font-semibold">캔들 + 이동평균선</span>
+          <div className="hidden flex-wrap gap-3.5 text-[11px] md:flex">
+            {Object.entries(MA_COLORS).map(([p, color]) => (
+              <div key={p} className="flex items-center gap-1.5 text-fg-muted">
+                <div className="h-0.5 w-3.5" style={{ background: color }} />
+                MA{p}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex rounded-chip border border-border-strong bg-elevated p-0.5">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTf(t.key)}
+              className={`rounded-[7px] px-3 py-1.5 text-[12px] md:px-3.5 ${
+                tf === t.key
+                  ? "bg-border-strong font-semibold text-fg"
+                  : "bg-transparent text-fg-muted"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {isMinute && (
+        <div className="mb-3 text-[11px] text-fg-dim">
+          분봉은 최근 7거래일 기준입니다 (09:00 개장 기준으로 집계).
+        </div>
+      )}
+      <div className="relative min-h-[200px]">
+        {loading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center text-[13px] text-fg-muted">
+            차트 불러오는 중…
+          </div>
+        )}
+        {error && !loading && (
+          <div className="flex h-[200px] items-center justify-center text-[13px] text-warn">
+            {error}
+          </div>
+        )}
+        {chart && !error && (
+          <div className={loading ? "opacity-40" : ""}>
+            <ChartSVG chart={chart} currentPrice={tf === "D" ? data.currentPrice : undefined} isMinute={isMinute} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ChartSVG({
+  chart,
+  currentPrice,
+  isMinute,
+}: {
+  chart: ChartData;
+  currentPrice?: number;
+  isMinute: boolean;
+}) {
   const W = 1180;
   const H = 380;
-  const PAD_L = 46;
+  const PAD_L = 56;
   const PAD_R = 30;
   const PAD_T = 20;
   const chartH = 260;
   const volH = 70;
 
-  const candles = data.chartData.candles;
-  const closes = candles.map((c) => c.c);
+  const candles = chart.candles;
+  if (candles.length === 0) return null;
   const highs = candles.map((c) => c.h);
   const lows = candles.map((c) => c.l);
-  const yMin = Math.floor(Math.min(...lows) / 1000) * 1000 - 1000;
-  const yMax = Math.ceil(Math.max(...highs) / 1000) * 1000 + 1000;
-  const y = (v: number) => PAD_T + chartH - ((v - yMin) / (yMax - yMin)) * chartH;
+  const rawMin = Math.min(...lows);
+  const rawMax = Math.max(...highs);
+  const step = niceStep(Math.max(1, rawMax - rawMin));
+  const yMin = Math.floor(rawMin / step) * step;
+  const yMax = Math.ceil(rawMax / step) * step;
+  const y = (v: number) => PAD_T + chartH - ((v - yMin) / (yMax - yMin || 1)) * chartH;
 
   const cw = (W - PAD_L - PAD_R) / candles.length;
-  const cbw = cw * 0.62;
+  const cbw = Math.max(1, cw * 0.62);
 
   const gridLines = [];
-  for (let i = 0; i <= 5; i++) {
-    const v = yMin + ((yMax - yMin) * i) / 5;
+  for (let v = yMin; v <= yMax; v += step) {
     const yy = y(v);
     gridLines.push(
-      <g key={`g-${i}`}>
+      <g key={`g-${v}`}>
         <line x1={PAD_L} x2={W - PAD_R} y1={yy} y2={yy} stroke="#272E3F" strokeWidth={1} />
         <text x={PAD_L - 8} y={yy + 3} fill="#7E88A0" fontSize={10} textAnchor="end">
           {v.toLocaleString()}
@@ -75,12 +177,14 @@ export function CandleChart({ data }: { data: AnalyzeResponse }) {
   const pathFor = (arr: (number | null)[]) =>
     arr
       .map((v, i) =>
-        v == null ? null : `${i === 0 || arr[i - 1] == null ? "M" : "L"}${(PAD_L + i * cw + cbw / 2).toFixed(1)} ${y(v).toFixed(1)}`,
+        v == null
+          ? null
+          : `${i === 0 || arr[i - 1] == null ? "M" : "L"}${(PAD_L + i * cw + cbw / 2).toFixed(1)} ${y(v).toFixed(1)}`,
       )
       .filter(Boolean)
       .join(" ");
 
-  const maPaths = Object.entries(data.chartData.ma).map(([k, series]) => (
+  const maPaths = Object.entries(chart.ma).map(([k, series]) => (
     <path
       key={`ma-${k}`}
       d={pathFor(series)}
@@ -93,95 +197,52 @@ export function CandleChart({ data }: { data: AnalyzeResponse }) {
   ));
 
   const volBase = PAD_T + chartH + 20;
-  const volMax = Math.max(...candles.map((c) => c.v));
+  const volMax = Math.max(...candles.map((c) => c.v), 1);
   const volEls = candles.map((c, i) => {
     const x = PAD_L + i * cw;
     const h = (c.v / volMax) * volH;
     const up = c.c >= c.o;
     return (
-      <rect
-        key={`v-${i}`}
-        x={x}
-        y={volBase + volH - h}
-        width={cbw}
-        height={h}
-        fill={up ? "#E5484D66" : "#3E63DD66"}
-      />
+      <rect key={`v-${i}`} x={x} y={volBase + volH - h} width={cbw} height={h} fill={up ? "#E5484D66" : "#3E63DD66"} />
     );
   });
 
-  const currentY = y(data.currentPrice);
-  const dateLabels = [0, Math.floor(candles.length / 4), Math.floor(candles.length / 2), Math.floor((candles.length * 3) / 4), candles.length - 1].map(
-    (i) => {
-      const x = PAD_L + i * cw + cbw / 2;
-      const d = new Date(candles[i].t);
-      const label = `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-      return (
-        <text key={`d-${i}`} x={x} y={volBase + volH + 16} fill="#7E88A0" fontSize={10} textAnchor="middle">
-          {label}
-        </text>
-      );
-    },
-  );
+  const n = candles.length;
+  const labelIdx = [0, Math.floor(n / 4), Math.floor(n / 2), Math.floor((n * 3) / 4), n - 1];
+  const dateLabels = Array.from(new Set(labelIdx)).map((i) => {
+    const x = PAD_L + i * cw + cbw / 2;
+    const d = new Date(candles[i].t);
+    const label = isMinute
+      ? `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+      : `${d.getFullYear() % 100}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+    return (
+      <text key={`d-${i}`} x={x} y={volBase + volH + 16} fill="#7E88A0" fontSize={10} textAnchor="middle">
+        {label}
+      </text>
+    );
+  });
+
+  const cur = currentPrice ?? candles[n - 1].c;
+  const currentY = y(cur);
 
   return (
-    <div className="mb-5 rounded-card border border-border bg-surface p-6 shadow-card">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="text-[15px] font-semibold">캔들 + 이동평균선</span>
-          <div className="flex flex-wrap gap-3.5 text-[11px]">
-            {LEGEND.map(([label, color]) => (
-              <div key={label} className="flex items-center gap-1.5 text-fg-muted">
-                <div className="h-0.5 w-3.5" style={{ background: color }} />
-                {label}
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="flex rounded-chip border border-border-strong bg-elevated p-0.5">
-          <button className="rounded-[7px] bg-border-strong px-3.5 py-1.5 text-[12px] font-semibold text-fg">
-            일봉
-          </button>
-          <button className="rounded-[7px] px-3.5 py-1.5 text-[12px] text-fg-muted">240분봉</button>
-          <button className="rounded-[7px] px-3.5 py-1.5 text-[12px] text-fg-muted">60분봉</button>
-        </div>
-      </div>
-      <div className="relative">
-        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: "block" }}>
-          {gridLines}
-          {candleEls}
-          {maPaths}
-          <g>
-            <line
-              x1={PAD_L}
-              x2={W - PAD_R}
-              y1={currentY}
-              y2={currentY}
-              stroke="#E5484D"
-              strokeWidth={1}
-              strokeDasharray="3 4"
-              opacity={0.6}
-            />
-            <rect x={W - PAD_R - 60} y={currentY - 10} width={58} height={20} fill="#E5484D" rx={4} />
-            <text
-              x={W - PAD_R - 31}
-              y={currentY + 4}
-              fill="#fff"
-              fontSize={11}
-              fontWeight={700}
-              textAnchor="middle"
-            >
-              {data.currentPrice.toLocaleString()}
-            </text>
-          </g>
-          <line x1={PAD_L} x2={W - PAD_R} y1={volBase} y2={volBase} stroke="#272E3F" />
-          <text x={PAD_L - 8} y={volBase + 12} fill="#7E88A0" fontSize={10} textAnchor="end">
-            VOL
-          </text>
-          {volEls}
-          {dateLabels}
-        </svg>
-      </div>
-    </div>
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: "block" }}>
+      {gridLines}
+      {candleEls}
+      {maPaths}
+      <g>
+        <line x1={PAD_L} x2={W - PAD_R} y1={currentY} y2={currentY} stroke="#E5484D" strokeWidth={1} strokeDasharray="3 4" opacity={0.6} />
+        <rect x={W - PAD_R - 66} y={currentY - 10} width={64} height={20} fill="#E5484D" rx={4} />
+        <text x={W - PAD_R - 34} y={currentY + 4} fill="#fff" fontSize={11} fontWeight={700} textAnchor="middle">
+          {cur.toLocaleString()}
+        </text>
+      </g>
+      <line x1={PAD_L} x2={W - PAD_R} y1={volBase} y2={volBase} stroke="#272E3F" />
+      <text x={PAD_L - 8} y={volBase + 12} fill="#7E88A0" fontSize={10} textAnchor="end">
+        VOL
+      </text>
+      {volEls}
+      {dateLabels}
+    </svg>
   );
 }

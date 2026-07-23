@@ -3,35 +3,31 @@
 from __future__ import annotations
 
 import asyncio
-import csv
+
 import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.report import build_response
-from src.config import BACKEND_ROOT, get_settings
+from src.api.report import build_response, chart_payload
+from src.config import get_settings
 from src.data.cache import AnalysisCache
 from src.data.kis_client import KISClient, KISError
+from src.data.master import load_master, search_master
 from src.data.news import fetch_news
+from src.data.resample import resample_minutes
 from src.db.cache_db import DBCache
-from src.schemas import AnalyzeResponse, NewsItem, SearchHit
+from src.schemas import AnalyzeResponse, ChartData, NewsItem, SearchHit
 
 logger = logging.getLogger("uvicorn.error")
-_STOCKS_CSV = BACKEND_ROOT / "assets" / "stocks.csv"
-
-
-def _load_stock_master() -> dict[str, dict]:
-    with open(_STOCKS_CSV, encoding="utf-8") as f:
-        return {row["ticker"]: row for row in csv.DictReader(f)}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
     app.state.kis = KISClient()
-    app.state.stocks = _load_stock_master()
+    app.state.stocks = await load_master()  # 코스피+코스닥 전 종목
     # 캐시: Supabase Postgres 우선, 실패 시 in-memory 폴백 (step 10)
     app.state.db_cache = None
     app.state.mem_cache = AnalysisCache()
@@ -93,7 +89,7 @@ async def analyze(ticker: str):
     # 종목명·섹터 결정 (뉴스 검색어로도 사용)
     master = app.state.stocks.get(ticker)
     if master:
-        name, sector = master["name"], master["sector"]
+        name, sector = master["name"], master.get("sector")
     else:
         try:
             info = await kis.search_stock_info(ticker)
@@ -106,7 +102,7 @@ async def analyze(ticker: str):
         price_info, candles, news_raw = await asyncio.gather(
             kis.inquire_price(ticker),
             kis.inquire_daily_candles(ticker, count=320),
-            fetch_news(name, settings.naver_client_id, settings.naver_client_secret),
+            fetch_news(name, settings.naver_client_id, settings.naver_client_secret, limit=3),
         )
     except KISError as e:
         raise HTTPException(502, f"KIS API 오류: {e}") from e
@@ -123,11 +119,45 @@ async def analyze(ticker: str):
 
 @app.get("/api/search", response_model=list[SearchHit], response_model_by_alias=True)
 async def search(q: str = ""):
-    stocks = app.state.stocks
-    needle = q.strip().lower()
-    hits = [
+    return [
         SearchHit(ticker=s["ticker"], name=s["name"], market=s["market"])
-        for s in stocks.values()
-        if not needle or needle in s["name"].lower() or needle in s["ticker"]
+        for s in search_master(app.state.stocks, q)
     ]
-    return hits[:20]
+
+
+_TF_PERIOD = {"D": "D", "W": "W", "M": "M"}
+_TF_MINUTES = {"60": 60, "240": 240}
+
+
+@app.get("/api/candles/{ticker}", response_model=ChartData, response_model_by_alias=True)
+async def candles(ticker: str, tf: str = "D"):
+    """타임프레임별 차트 데이터. tf: D(일)|W(주)|M(월)|60(60분)|240(240분)."""
+    if tf not in _TF_PERIOD and tf not in _TF_MINUTES:
+        raise HTTPException(400, "tf는 D|W|M|60|240 중 하나입니다")
+    key = f"candles:{ticker}:{tf}"
+    cached = app.state.mem_cache.get(key)
+    if cached is not None:
+        return cached
+
+    kis: KISClient = app.state.kis
+    try:
+        if tf in _TF_PERIOD:
+            rows = await kis.inquire_period_candles(ticker, tf, count=320 if tf == "D" else 160)
+            payload = chart_payload(rows, tail=120)
+        else:
+            # 최근 7거래일 1분봉 → 60/240분 리샘플 (09:00 앵커, ADR-3)
+            daily = await kis.inquire_period_candles(ticker, "D", count=10)
+            days = [c["date"] for c in daily[-7:]]
+            per_day = await asyncio.gather(
+                *(kis.inquire_day_minutes(ticker, d) for d in days)
+            )
+            minutes = [m for day_rows in per_day for m in day_rows]
+            if not minutes:
+                raise HTTPException(404, "분봉 데이터 없음")
+            payload = chart_payload(resample_minutes(minutes, _TF_MINUTES[tf]), tail=None)
+    except KISError as e:
+        raise HTTPException(502, f"KIS API 오류: {e}") from e
+
+    out = payload.model_dump(by_alias=True)
+    app.state.mem_cache.set(key, out)
+    return out

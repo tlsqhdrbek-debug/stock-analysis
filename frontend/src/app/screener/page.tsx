@@ -14,7 +14,7 @@ export default async function ScreenerPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1440px] px-8 pb-20 pt-6">
+    <div className="mx-auto max-w-[1440px] px-4 pb-20 md:px-8 pt-6">
       <TopBar />
       <div className="mt-8">
         <div className="mb-2 flex items-baseline gap-3">
@@ -32,8 +32,8 @@ export default async function ScreenerPage() {
             {error}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-card border border-border bg-surface shadow-card">
-            <table className="w-full text-[13px]">
+          <div className="overflow-x-auto rounded-card border border-border bg-surface shadow-card">
+            <table className="w-full min-w-[560px] text-[13px]">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] tracking-[0.06em] text-fg-dim">
                   <th className="px-5 py-3 font-semibold">종목명</th>

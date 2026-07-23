@@ -8,8 +8,10 @@
 //
 // next.config.mjs의 rewrites가 /api/backend/* → BACKEND_URL/api/* 로 프록시.
 
-import type { AnalyzeResponse } from "./types";
+import type { AnalyzeResponse, ChartData } from "./types";
 import { mockAnalyze } from "./mock";
+
+export type ChartTF = "M" | "W" | "D" | "240" | "60";
 
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
 
@@ -34,6 +36,21 @@ export async function analyze(ticker: string): Promise<AnalyzeResponse> {
   });
   if (!res.ok) throw new Error(`analyze ${ticker} failed: ${res.status}`);
   return (await res.json()) as AnalyzeResponse;
+}
+
+export async function fetchCandles(
+  ticker: string,
+  tf: ChartTF,
+): Promise<ChartData> {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 100));
+    return mockAnalyze.chartData;
+  }
+  const res = await fetch(backendUrl(`/candles/${ticker}?tf=${tf}`), {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`candles ${ticker}/${tf} failed: ${res.status}`);
+  return (await res.json()) as ChartData;
 }
 
 export interface SearchHit {

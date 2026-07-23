@@ -5,9 +5,10 @@ import { isWatched, toggleWatch } from "@/lib/watchlist";
 
 export function WatchStar({ ticker, name }: { ticker: string; name: string }) {
   const [on, setOn] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setOn(isWatched(ticker));
+    isWatched(ticker).then(setOn);
   }, [ticker]);
 
   return (
@@ -15,7 +16,12 @@ export function WatchStar({ ticker, name }: { ticker: string; name: string }) {
       type="button"
       aria-label={on ? "관심종목 해제" : "관심종목 추가"}
       title={on ? "관심종목 해제" : "관심종목 추가"}
-      onClick={() => setOn(toggleWatch({ ticker, name }))}
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        setOn(await toggleWatch({ ticker, name }));
+        setBusy(false);
+      }}
       className={`border-0 bg-transparent p-0 transition-transform hover:scale-110 ${
         on ? "text-warn" : "text-fg-dim hover:text-warn"
       }`}

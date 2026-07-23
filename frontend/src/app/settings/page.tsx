@@ -4,7 +4,7 @@ export default function SettingsPage() {
   const useMock = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
 
   return (
-    <div className="mx-auto max-w-[1440px] px-8 pb-20 pt-6">
+    <div className="mx-auto max-w-[1440px] px-4 pb-20 md:px-8 pt-6">
       <TopBar />
       <div className="mt-8 max-w-[720px]">
         <h1 className="mb-6 text-[24px] font-bold tracking-tight2">설정</h1>

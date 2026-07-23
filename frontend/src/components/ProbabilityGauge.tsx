@@ -12,15 +12,15 @@ export function ProbabilityGauge({ data }: { data: AnalyzeResponse }) {
   const dominantColor = up >= down ? "text-bull" : "text-bear-fg";
 
   return (
-    <div className="flex flex-col items-center rounded-card border border-border bg-surface p-7 shadow-card">
+    <div className="flex flex-col items-center rounded-card border border-border bg-surface p-5 shadow-card md:p-7">
       <div className="mb-2 flex w-full items-center justify-between">
         <span className="text-[13px] font-medium text-fg-muted">종합 확률</span>
         <span className="rounded-full border border-border-strong bg-elevated px-2 py-0.5 text-[11px] text-fg-dim">
-          MA 기반 · 60일 학습
+          이동평균 신호 종합
         </span>
       </div>
-      <div className="relative mt-2 h-[200px] w-[340px]">
-        <svg width="340" height="200" viewBox="0 0 340 200">
+      <div className="relative mt-2 h-[200px] w-full max-w-[340px]">
+        <svg width="100%" height="200" viewBox="0 0 340 200">
           <defs>
             <linearGradient id="upGrad" x1="0" x2="1" y1="0" y2="0">
               <stop offset="0" stopColor="#E5484D" stopOpacity="0.9" />

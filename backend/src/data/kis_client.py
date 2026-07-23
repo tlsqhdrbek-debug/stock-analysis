@@ -160,17 +160,22 @@ class KISClient:
         )
         return body["output"]
 
-    async def inquire_daily_candles(
-        self, ticker: str, count: int = 320
-    ) -> list[dict[str, Any]]:
-        """일봉 조회 (수정주가). 100개/호출 제한 → 날짜 페이징으로 count개 이상 수집.
+    # 기간별 페이징 윈도우 (100봉이 대략 커버하는 달력일수 + 여유)
+    _PERIOD_WINDOW_DAYS = {"D": 200, "W": 800, "M": 3300}
 
+    async def inquire_period_candles(
+        self, ticker: str, period: str = "D", count: int = 320
+    ) -> list[dict[str, Any]]:
+        """일/주/월봉 조회 (수정주가). 100개/호출 제한 → 날짜 페이징.
+
+        period: D(일) | W(주) | M(월)
         반환: 과거→최신 순 [{date, open, high, low, close, volume}].
         """
+        window = self._PERIOD_WINDOW_DAYS.get(period, 200)
         end = date.today()
         rows: list[dict[str, Any]] = []
-        for _ in range(8):  # 안전 상한 (8×100 = 800일)
-            start = end - timedelta(days=200)  # 거래일 100개 ≈ 달력일 145일, 여유
+        for _ in range(8):
+            start = end - timedelta(days=window)
             body = await self._get(
                 "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
                 "FHKST03010100",
@@ -179,7 +184,7 @@ class KISClient:
                     "FID_INPUT_ISCD": ticker,
                     "FID_INPUT_DATE_1": start.strftime("%Y%m%d"),
                     "FID_INPUT_DATE_2": end.strftime("%Y%m%d"),
-                    "FID_PERIOD_DIV_CODE": "D",
+                    "FID_PERIOD_DIV_CODE": period,
                     "FID_ORG_ADJ_PRC": "0",  # 0: 수정주가
                 },
             )
@@ -208,6 +213,59 @@ class KISClient:
             }
             for r in ordered
         ][-count:]
+
+    async def inquire_daily_candles(
+        self, ticker: str, count: int = 320
+    ) -> list[dict[str, Any]]:
+        return await self.inquire_period_candles(ticker, "D", count)
+
+    # ── 분봉 ─────────────────────────────────────────────
+
+    async def _minute_page(
+        self, ticker: str, day: str, hour: str
+    ) -> list[dict[str, Any]]:
+        """주식일별분봉조회 — 지정 (날짜, 시각)에서 역방향 최대 120개 1분봉."""
+        body = await self._get(
+            "/uapi/domestic-stock/v1/quotations/inquire-time-dailychartprice",
+            "FHKST03010230",
+            {
+                "FID_COND_MRKT_DIV_CODE": "J",
+                "FID_INPUT_ISCD": ticker,
+                "FID_INPUT_DATE_1": day,
+                "FID_INPUT_HOUR_1": hour,
+                "FID_PW_DATA_INCU_YN": "N",
+                "FID_FAKE_TICK_INCU_YN": "",
+            },
+        )
+        return body.get("output2", []) or []
+
+    async def inquire_day_minutes(self, ticker: str, day: str) -> list[dict[str, Any]]:
+        """하루치 1분봉 전체(09:00~15:30, 391개). 120개/호출 제한 → 4구간 병렬 조회."""
+        pages = await asyncio.gather(
+            *(self._minute_page(ticker, day, h)
+              for h in ("110000", "130000", "150000", "153000")),
+            return_exceptions=True,
+        )
+        seen: dict[str, dict[str, Any]] = {}
+        for page in pages:
+            if isinstance(page, BaseException):
+                continue  # 일부 구간 실패는 무시 (graceful degradation)
+            for r in page:
+                t = r.get("stck_cntg_hour", "")
+                if r.get("stck_bsop_date") and "090000" <= t <= "153000":
+                    seen[t] = r
+        return [
+            {
+                "date": r["stck_bsop_date"],
+                "time": r["stck_cntg_hour"],
+                "open": float(r["stck_oprc"]),
+                "high": float(r["stck_hgpr"]),
+                "low": float(r["stck_lwpr"]),
+                "close": float(r["stck_prpr"]),
+                "volume": int(r["cntg_vol"]),
+            }
+            for t, r in sorted(seen.items())
+        ]
 
     async def search_stock_info(self, ticker: str) -> dict[str, Any]:
         """상품기본조회 — 종목명 등. (실전서버 전용 TR)"""

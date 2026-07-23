@@ -35,7 +35,7 @@ export function NewsGrid({ ticker, name, news }: { ticker: string; name: string;
           최근 7일 내 관련 뉴스가 없습니다.
         </div>
       )}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {news.map((n, i) => (
           <a
             key={i}

@@ -249,9 +249,17 @@ def _model_confidence(score: ScoreResult) -> int:
     return max(1, min(5, int(round(1 + ratio * 4))))
 
 
-def _chart_data(candles: list[dict], mas: dict[int, np.ndarray]) -> ChartData:
-    tail = 120  # 프론트 차트는 최근 120봉
-    sliced = candles[-tail:]
+def _iso_time(c: dict) -> str:
+    d = c["date"]
+    hh, mm = (c["time"][:2], c["time"][2:4]) if "time" in c else ("00", "00")
+    return f"{d[:4]}-{d[4:6]}-{d[6:]}T{hh}:{mm}:00+09:00"
+
+
+def chart_payload(candles: list[dict], tail: int | None = 120) -> ChartData:
+    """캔들 목록(일/주/월/분봉 공용) → ChartData. MA는 전체 구간으로 계산 후 슬라이스."""
+    closes = np.array([c["close"] for c in candles], dtype=np.float64)
+    mas = compute_mas(closes)
+    sliced = candles[-tail:] if tail else candles
     offset = len(candles) - len(sliced)
     ma_out: dict[str, list[float | None]] = {}
     for p in MA_PERIODS:
@@ -259,15 +267,12 @@ def _chart_data(candles: list[dict], mas: dict[int, np.ndarray]) -> ChartData:
         ma_out[str(p)] = [None if np.isnan(v) else round(float(v), 1) for v in arr]
     return ChartData(
         candles=[
-            Candle(
-                t=f"{c['date'][:4]}-{c['date'][4:6]}-{c['date'][6:]}T00:00:00+09:00",
-                o=c["open"],
-                h=c["high"],
-                l=c["low"],
-                c=c["close"],
-                v=c["volume"],
-            )
+            Candle(t=_iso_time(c), o=c["open"], h=c["high"], l=c["low"], c=c["close"], v=c["volume"])
             for c in sliced
         ],
         ma=ma_out,
     )
+
+
+def _chart_data(candles: list[dict], mas: dict[int, np.ndarray]) -> ChartData:
+    return chart_payload(candles, tail=120)
