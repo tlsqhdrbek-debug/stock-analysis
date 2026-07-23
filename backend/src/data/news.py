@@ -53,16 +53,35 @@ def parse_pubdate(rfc822: str) -> datetime | None:
         return None
 
 
+def _mentions(item: dict, name: str) -> bool:
+    """제목 또는 요약에 종목명이 실제로 등장하는가 (공백·대소문자 무시)."""
+    needle = name.replace(" ", "").lower()
+    hay = clean_title(
+        (item.get("title", "") or "") + " " + (item.get("description", "") or "")
+    ).replace(" ", "").lower()
+    return needle in hay
+
+
 def select_recent(
-    items: list[dict], now: datetime | None = None, days: int = 7, limit: int = 10
+    items: list[dict],
+    now: datetime | None = None,
+    days: int = 7,
+    limit: int = 10,
+    require: str | None = None,
 ) -> list[dict]:
-    """검색 결과에서 최근 days일 이내만 골라 limit개 반환 (순수 함수)."""
+    """최근 days일 이내 + (require 지정 시) 종목명 언급 기사만 limit개 (순수 함수).
+
+    require 필터로 전부 걸러지면 관련성 낮은 오탐(축제·수상 소식 등)만 있었다는
+    뜻이므로 빈 목록 대신 필터 없이 재선별한 결과를 반환한다 (호출부 폴백).
+    """
     now = now or datetime.now(KST)
     cutoff = now - timedelta(days=days)
     out = []
     for item in items:
         dt = parse_pubdate(item.get("pubDate", ""))
         if dt is None or dt < cutoff:
+            continue
+        if require and not _mentions(item, require):
             continue
         link = item.get("originallink") or item.get("link") or ""
         out.append(
@@ -77,6 +96,8 @@ def select_recent(
         )
         if len(out) >= limit:
             break
+    if not out and require:
+        return select_recent(items, now=now, days=days, limit=limit, require=None)
     return out
 
 
@@ -90,7 +111,8 @@ async def fetch_news(
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(
                 NAVER_NEWS_URL,
-                params={"query": query, "display": 30, "sort": "date"},
+                # 종목명 단독 검색은 오탐이 많아(예: "NAVER") 주가 맥락을 붙인다
+                params={"query": f"{query} 주가", "display": 50, "sort": "date"},
                 headers={
                     "X-Naver-Client-Id": client_id,
                     "X-Naver-Client-Secret": client_secret,
@@ -98,6 +120,6 @@ async def fetch_news(
             )
         if resp.status_code != 200:
             return []
-        return select_recent(resp.json().get("items", []), limit=limit)
+        return select_recent(resp.json().get("items", []), limit=limit, require=query)
     except httpx.HTTPError:
         return []
