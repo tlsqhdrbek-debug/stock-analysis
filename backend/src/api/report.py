@@ -78,10 +78,11 @@ def build_response(
         "min60": ma_status_daily,
     }
 
-    active = _active_signals(signals, cfg)
+    active_raw = _pick_active(signals, cfg)
+    active = [_to_signal_card(s, cfg) for s in active_raw]
     bull_tech, bear_tech = _technical_reasons(score)
     bull_macro, bear_macro = macro_reasons(sector)
-    summary, summary_sub = _summary(signals, score, mas, current_price)
+    summary, summary_sub = _summary(signals, active_raw, score, mas, current_price)
 
     return AnalyzeResponse(
         ticker=ticker,
@@ -103,7 +104,7 @@ def build_response(
         horizon="short",
         summary=summary,
         summary_sub=summary_sub,
-        chips=_chips(signals),
+        chips=_chips(signals, active_raw),
         ma_status=ma_status,
         active_signals=active,
         bullish_reasons=ReasonGroup(technical=bull_tech, macro=bull_macro),
@@ -140,30 +141,30 @@ def _ma_status(
     )
 
 
-def _active_signals(signals: list[SignalResult], cfg: dict) -> list[Signal]:
-    """|score|가 유의미한 신호만 카드로 노출 (최대 4개)."""
+def _pick_active(signals: list[SignalResult], cfg: dict) -> list[SignalResult]:
+    """|score|·가중치 기준 상위 4개 SignalResult (카드·chip·요약의 단일 소스)."""
     weights = cfg["weights"]
     scored = [s for s in signals if abs(s.score) >= 0.25 and weights.get(s.key, 0) > 0]
     scored.sort(key=lambda s: abs(s.score) * weights.get(s.key, 0), reverse=True)
-    out = []
+    return scored[:4]
+
+
+def _to_signal_card(s: SignalResult, cfg: dict) -> Signal:
+    weights = cfg["weights"]
     today = datetime.now(KST).strftime("%Y.%m.%d")
-    for s in scored[:4]:
-        sig_type = s.meta.get("card_type") or _SIGNAL_TYPE.get(s.key)
-        if s.key.startswith("cross_"):
-            sig_type = "golden_cross" if s.score > 0 else "dead_cross"
-        out.append(
-            Signal(
-                type=sig_type or "perfect_alignment",
-                pair=s.meta.get("pair"),
-                name=s.label,
-                desc=s.desc,
-                direction="bull" if s.score > 0 else "bear",
-                confidence=int(round(abs(s.score) * 100)),
-                date=today,
-                weight=round(abs(s.score) * weights.get(s.key, 0) * 100, 1),
-            )
-        )
-    return out
+    sig_type = s.meta.get("card_type") or _SIGNAL_TYPE.get(s.key)
+    if s.key.startswith("cross_"):
+        sig_type = "golden_cross" if s.score > 0 else "dead_cross"
+    return Signal(
+        type=sig_type or "perfect_alignment",
+        pair=s.meta.get("pair"),
+        name=s.label,
+        desc=s.desc,
+        direction="bull" if s.score > 0 else "bear",
+        confidence=int(round(abs(s.score) * 100)),
+        date=today,
+        weight=round(abs(s.score) * weights.get(s.key, 0) * 100, 1),
+    )
 
 
 def _technical_reasons(score: ScoreResult) -> tuple[list[Reason], list[Reason]]:
@@ -180,51 +181,107 @@ def _technical_reasons(score: ScoreResult) -> tuple[list[Reason], list[Reason]]:
     return bulls[:4], bears[:4]
 
 
-def _chips(signals: list[SignalResult]) -> list[Chip]:
-    chips = []
-    for s in signals:
-        if s.key == "arrangement" and s.meta.get("state") == "perfect_bull":
+def _chips(signals: list[SignalResult], active: list[SignalResult]) -> list[Chip]:
+    """상단 chip은 발동 신호 카드와 정합해야 한다 (그렇지 않으면 사용자 혼선).
+
+    - arrangement/disparity/rsi: 배열·이격도·RSI는 배경 상태라 항상 표시 허용
+    - cross·volume 등 카드로 노출되는 신호: 반드시 active에 포함된 것만 chip
+    - 크로스 신호는 여러 쌍이 반대 방향일 수 있어 강도 최상위 1개만 표시
+    """
+    chips: list[Chip] = []
+    by_key = {s.key: s for s in signals}
+    active_keys = {s.key for s in active}
+
+    arr = by_key.get("arrangement")
+    if arr:
+        state = arr.meta.get("state")
+        if state == "perfect_bull":
             chips.append(Chip(label="정배열", tone="bull"))
-        elif s.key == "arrangement" and s.meta.get("state") == "perfect_bear":
+        elif state == "perfect_bear":
             chips.append(Chip(label="역배열", tone="bear"))
-        elif s.key.startswith("cross_") and s.score > 0.3:
-            chips.append(Chip(label="골든크로스", tone="bull"))
-        elif s.key.startswith("cross_") and s.score < -0.3:
-            chips.append(Chip(label="데드크로스", tone="bear"))
-        elif s.key == "disparity" and s.score <= -0.4:
-            chips.append(Chip(label="과열 주의", tone="warn"))
-        elif s.key == "rsi" and s.score <= -0.5:
-            chips.append(Chip(label="RSI 과매수", tone="warn"))
-        elif s.key == "rsi" and s.score >= 0.5:
-            chips.append(Chip(label="RSI 과매도", tone="neutral"))
-        elif s.key == "volume" and s.score > 0.2:
+
+    # 크로스: active에 들어온 것 중 |score| 최대 하나만
+    active_crosses = [s for s in active if s.key.startswith("cross_")]
+    if active_crosses:
+        best = max(active_crosses, key=lambda s: abs(s.score))
+        chips.append(
+            Chip(
+                label="골든크로스" if best.score > 0 else "데드크로스",
+                tone="bull" if best.score > 0 else "bear",
+            )
+        )
+
+    disp = by_key.get("disparity")
+    if disp and disp.score <= -0.4:
+        chips.append(Chip(label="과열 주의", tone="warn"))
+
+    rsi = by_key.get("rsi")
+    if rsi and rsi.score <= -0.5:
+        chips.append(Chip(label="RSI 과매수", tone="warn"))
+    elif rsi and rsi.score >= 0.5:
+        chips.append(Chip(label="RSI 과매도", tone="neutral"))
+
+    # 거래량 chip은 실제로 카드에 뜬 경우에만
+    if "volume" in active_keys:
+        v = by_key["volume"]
+        if v.score > 0.2:
             chips.append(Chip(label="거래량 증가", tone="neutral"))
+        elif v.score < -0.2:
+            chips.append(Chip(label="거래량 감소", tone="neutral"))
+
+    # 저항 돌파(sr_level) / fake breakout이 카드에 있으면 노출
+    if "sr_level" in active_keys:
+        s = by_key["sr_level"]
+        if s.score > 0:
+            chips.append(Chip(label="저항 돌파", tone="bull"))
+    if "fake_breakout" in active_keys:
+        chips.append(Chip(label="속임수 돌파 주의", tone="warn"))
+
     return chips[:4]
 
 
 def _summary(
     signals: list[SignalResult],
+    active: list[SignalResult],
     score: ScoreResult,
     mas: dict[int, np.ndarray],
     current_price: float,
 ) -> tuple[str, str]:
+    """상단 요약 문장 — active(카드로 노출된 신호)만 근거로 사용해 카드와 정합."""
     by_key = {s.key: s for s in signals}
-    parts = []
+    active_by_key = {s.key: s for s in active}
+    parts: list[str] = []
+
     arr = by_key["arrangement"]
-    if arr.meta.get("state") == "perfect_bull":
+    state = arr.meta.get("state")
+    if state == "perfect_bull":
         parts.append("정배열 유지")
-    elif arr.meta.get("state") == "perfect_bear":
+    elif state == "perfect_bear":
         parts.append("역배열 지속")
     else:
         parts.append("이평선 혼조 배열")
-    sup = by_key.get("support")
+
+    # active에 들어온 신호만 요약에 반영
+    sup = active_by_key.get("support")
     if sup and sup.score > 0:
         parts.append(f"{sup.meta['period']}일선 지지 확인")
-    for s in signals:
-        if s.key.startswith("cross_") and abs(s.score) >= 0.3:
-            kind = "골든크로스" if s.score > 0 else "데드크로스"
-            parts.append(f"{s.meta['pair']} {kind} " + ("발생" if s.meta["days_ago"] <= 5 else "이후 진행"))
-            break
+
+    active_crosses = [s for s in active if s.key.startswith("cross_")]
+    if active_crosses:
+        best = max(active_crosses, key=lambda s: abs(s.score))
+        kind = "골든크로스" if best.score > 0 else "데드크로스"
+        parts.append(
+            f"{best.meta['pair']} {kind} "
+            + ("발생" if best.meta["days_ago"] <= 5 else "이후 진행")
+        )
+    elif "channel_break" in active_by_key:
+        cb = active_by_key["channel_break"]
+        parts.append("상승 채널 하단 이탈" if cb.score < 0 else "하락 채널 상단 돌파")
+
+    v = active_by_key.get("volume")
+    if v and len(parts) < 3:
+        parts.append("거래량 " + ("증가" if v.score > 0 else "감소"))
+
     summary = ", ".join(parts[:3]) + "."
 
     sub_parts = []
