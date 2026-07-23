@@ -1,4 +1,5 @@
 import { analyze } from "@/lib/api";
+import { AISummary } from "@/components/AISummary";
 import { TopBar } from "@/components/TopBar";
 import { StockHeader } from "@/components/StockHeader";
 import { ProbabilityGauge } from "@/components/ProbabilityGauge";
@@ -30,6 +31,7 @@ export default async function AnalyzePage({
           <ProbabilityGauge data={data} />
           <div className="flex flex-col gap-5">
             <SummaryCard data={data} />
+            <AISummary ticker={data.ticker} />
             <MAStatusGrid data={data} />
           </div>
         </div>

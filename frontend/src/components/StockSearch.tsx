@@ -55,7 +55,10 @@ export function StockSearch({
       setOpen(false);
       setQ("");
       if (onSelect) onSelect(hit);
-      else router.push(`/analyze/${hit.ticker}`);
+      else {
+        router.push(`/analyze/${hit.ticker}`);
+        router.refresh(); // 라우터 캐시 무효화 — 뉴스 등 이전 종목 데이터 잔존 방지
+      }
     },
     [onSelect, router],
   );

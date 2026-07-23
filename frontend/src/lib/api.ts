@@ -53,6 +53,29 @@ export async function fetchCandles(
   return (await res.json()) as ChartData;
 }
 
+export interface AiSummary {
+  ticker: string;
+  model: string;
+  summary: string;
+  asOf: string;
+}
+
+export async function fetchAiSummary(ticker: string): Promise<AiSummary> {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 600));
+    return {
+      ticker,
+      model: "gpt-5-mini",
+      summary:
+        "현재 주가는 모든 이동평균선 위에 있는 정배열 상태로, 상승 흐름이 이어지고 있습니다. 60일선에서 세 차례 지지받았고 거래량도 평소보다 늘어 매수세가 붙어 있는 모습입니다. 다만 200일선과의 거리가 10% 가까이 벌어져 단기 과열 부담이 있고, RSI도 과매수권에 진입해 있습니다. 상승 확률이 우세하게 계산되지만, 단기 급등 뒤에는 평균선까지 되돌림이 나올 수 있다는 점을 함께 고려해야 합니다.",
+      asOf: new Date().toISOString(),
+    };
+  }
+  const res = await fetch(`/api/backend/ai-summary/${ticker}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`ai-summary failed: ${res.status}`);
+  return (await res.json()) as AiSummary;
+}
+
 export interface SearchHit {
   ticker: string;
   name: string;

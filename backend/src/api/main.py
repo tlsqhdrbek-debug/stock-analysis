@@ -14,6 +14,7 @@ from src.api.report import build_response, chart_payload
 from src.config import get_settings
 from src.data.cache import AnalysisCache
 from src.data.kis_client import KISClient, KISError
+from src.data.llm import LLMError, generate_summary
 from src.data.master import load_master, search_master
 from src.data.news import fetch_news
 from src.data.resample import resample_minutes
@@ -74,11 +75,8 @@ async def _cache_set(ticker: str, payload: dict) -> None:
     app.state.mem_cache.set(ticker, payload)
 
 
-@app.get("/api/analyze/{ticker}", response_model=AnalyzeResponse, response_model_by_alias=True)
-async def analyze(ticker: str):
-    if not (ticker.isdigit() and len(ticker) == 6):
-        raise HTTPException(400, "종목코드는 6자리 숫자입니다")
-
+async def _get_analysis(ticker: str) -> dict:
+    """분석 페이로드 (캐시 우선). analyze·ai-summary 공용."""
     cached = await _cache_get(ticker)
     if cached is not None:
         return cached
@@ -115,6 +113,38 @@ async def analyze(ticker: str):
     payload = resp.model_dump(by_alias=True)
     await _cache_set(ticker, payload)
     return payload
+
+
+@app.get("/api/analyze/{ticker}", response_model=AnalyzeResponse, response_model_by_alias=True)
+async def analyze(ticker: str):
+    if not (ticker.isdigit() and len(ticker) == 6):
+        raise HTTPException(400, "종목코드는 6자리 숫자입니다")
+    return await _get_analysis(ticker)
+
+
+@app.get("/api/ai-summary/{ticker}")
+async def ai_summary(ticker: str):
+    """gpt-5-mini로 이평선·신호·상방/하방 근거·뉴스를 통합 요약."""
+    if not (ticker.isdigit() and len(ticker) == 6):
+        raise HTTPException(400, "종목코드는 6자리 숫자입니다")
+    settings = get_settings()
+    if not settings.openai_api_key:
+        raise HTTPException(503, "OPENAI_API_KEY가 설정되지 않았습니다")
+
+    key = f"ai:{ticker}"
+    cached = await _cache_get(key)
+    if cached is not None:
+        return cached
+
+    payload = await _get_analysis(ticker)
+    try:
+        text = await generate_summary(payload, settings.openai_api_key)
+    except LLMError as e:
+        raise HTTPException(502, f"AI 요약 실패: {e}") from e
+
+    out = {"ticker": ticker, "model": "gpt-5-mini", "summary": text, "asOf": payload["asOf"]}
+    await _cache_set(key, out)
+    return out
 
 
 @app.get("/api/search", response_model=list[SearchHit], response_model_by_alias=True)

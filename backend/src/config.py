@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     direct_url: str = ""  # Supabase session-mode pooler (마이그레이션용)
     naver_client_id: str = ""
     naver_client_secret: str = ""
+    openai_api_key: str = ""
 
     @property
     def kis_base_url(self) -> str:
