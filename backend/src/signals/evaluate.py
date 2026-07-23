@@ -283,8 +283,24 @@ def evaluate_daily(
     cross_lookback: int = 30,
     cross_decay_days: int = 30,
     volume_multiplier: float = 1.3,
+    opens: np.ndarray | None = None,
+    highs: np.ndarray | None = None,
 ) -> list[SignalResult]:
-    """일봉 기준 전체 신호 판정."""
+    """일봉 기준 전체 신호 판정.
+
+    opens/highs가 주어지면 고급 신호(수평 지지저항·추세채널·볼린저·
+    캔들패턴·다이버전스·멀티컨펌)까지 판정한다.
+    """
+    from src.signals.advanced import (
+        bollinger_signal,
+        candle_signal,
+        multi_confirm_signal,
+        rsi_divergence_signal,
+        sr_levels,
+        sr_signal,
+        trend_channel_signal,
+    )
+
     mas = compute_mas(closes)
     results = [
         arrangement_signal(mas),
@@ -303,4 +319,14 @@ def evaluate_daily(
             volume_multiplier=volume_multiplier,
         )
     )
+
+    if opens is not None and highs is not None:
+        results.extend(sr_signal(closes, highs, lows, volumes))
+        results.extend(trend_channel_signal(closes))
+        results.append(bollinger_signal(closes))
+        results.append(
+            candle_signal(opens, highs, lows, closes, sr_levels(highs, lows))
+        )
+        results.append(rsi_divergence_signal(closes))
+        results.append(multi_confirm_signal(results))
     return results

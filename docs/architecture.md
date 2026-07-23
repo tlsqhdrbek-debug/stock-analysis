@@ -102,3 +102,9 @@ Claude API 미보유. Phase 1 응답의 `news[].tag`는 전부 `NEUTRAL`,
 
 - 백엔드: Render (free) · DB: Neon Postgres · 프론트: Vercel
 - UptimeRobot 5분 핑으로 Render sleep 방지
+
+### ADR-6: 신호 우선순위 재설계 (2026-07-23)
+거래량 > 수평 지지·저항(매물대) > 추세선·채널 > 이동평균 > 캔들패턴 > 보조지표
+순으로 가중치 재배열. 거래량 미동반 돌파는 fake breakout으로 감점, 캔들패턴은
+지지/저항 부근 출현 시에만 유효(허공 0.2배), 서로 다른 계열 3개 이상 동방향이면
+multi_confirm 가산. 구현: signals/advanced.py, 가중치: config/weights.yaml.

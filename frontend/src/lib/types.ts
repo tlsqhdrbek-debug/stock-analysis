@@ -28,7 +28,18 @@ export interface Signal {
     | "resistance"
     | "overheated"
     | "oversold"
-    | "volume_surge";
+    | "volume_surge"
+    | "sr_support"
+    | "sr_resistance"
+    | "fake_breakout"
+    | "trend_up"
+    | "trend_down"
+    | "channel_break"
+    | "bb_squeeze"
+    | "bb_expansion"
+    | "candle_pattern"
+    | "rsi_divergence"
+    | "multi_confirm";
   pair?: string;         // "5-20", "20-60" 등 크로스 신호
   name: string;          // "골든크로스 임박"
   desc: string;

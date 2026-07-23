@@ -49,6 +49,8 @@ def build_response(
 ) -> AnalyzeResponse:
     closes = np.array([c["close"] for c in candles], dtype=np.float64)
     lows = np.array([c["low"] for c in candles], dtype=np.float64)
+    opens = np.array([c["open"] for c in candles], dtype=np.float64)
+    highs = np.array([c["high"] for c in candles], dtype=np.float64)
     volumes = np.array([c["volume"] for c in candles], dtype=np.float64)
 
     cfg = load_weights()
@@ -59,6 +61,8 @@ def build_response(
         cross_lookback=int(cfg.get("cross_decay_days", 30)),
         cross_decay_days=int(cfg.get("cross_decay_days", 30)),
         volume_multiplier=float(cfg.get("volume_confirm_multiplier", 1.3)),
+        opens=opens,
+        highs=highs,
     )
     score = compute_probability(signals, cfg)
 
@@ -142,7 +146,7 @@ def _active_signals(signals: list[SignalResult], cfg: dict) -> list[Signal]:
     out = []
     today = datetime.now(KST).strftime("%Y.%m.%d")
     for s in scored[:4]:
-        sig_type = _SIGNAL_TYPE.get(s.key)
+        sig_type = s.meta.get("card_type") or _SIGNAL_TYPE.get(s.key)
         if s.key.startswith("cross_"):
             sig_type = "golden_cross" if s.score > 0 else "dead_cross"
         out.append(
