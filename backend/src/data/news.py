@@ -53,13 +53,41 @@ def parse_pubdate(rfc822: str) -> datetime | None:
         return None
 
 
-def _mentions(item: dict, name: str) -> bool:
-    """제목 또는 요약에 종목명이 실제로 등장하는가 (공백·대소문자 무시)."""
+# 시장·거시·시황 기사 — 종목이 사례로만 언급되어도 회사 뉴스가 아님
+_MARKET_TAGS = (
+    "금융가", "증시", "시황", "코스피", "코스닥", "환율", "금리", "채권",
+    "국고채", "원자재", "국제유가", "시장동향", "마감시황", "개장시황",
+    "장마감", "장전브리핑", "장중시황", "특징주", "특징", "이슈종목",
+    "핫종목", "포토뉴스", "주간전망", "월요장", "화요장", "수요장",
+    "목요장", "금요장", "증시요약", "매매동향", "선물옵션",
+)
+
+
+def _has_market_tag(title: str) -> bool:
+    """제목이 시장·시황 대괄호 태그로 시작하면 True."""
+    t = title.lstrip()
+    if not t.startswith("["):
+        return False
+    end = t.find("]")
+    if end < 0:
+        return False
+    tag = t[1:end].strip().replace(" ", "")
+    return any(m in tag for m in _MARKET_TAGS)
+
+
+def _title_mentions(item: dict, name: str) -> bool:
+    """제목에 종목명이 실제로 등장하는가 (공백·대소문자 무시).
+
+    description은 신뢰도가 낮아 제외 — 본문에 사례로만 언급된 기사가 통과하는
+    문제가 있었다 (예: 신현송 총재 금리 브리핑에 SK하이닉스가 사례로 인용).
+    """
     needle = name.replace(" ", "").lower()
-    hay = clean_title(
-        (item.get("title", "") or "") + " " + (item.get("description", "") or "")
-    ).replace(" ", "").lower()
-    return needle in hay
+    title = clean_title(item.get("title", "") or "").replace(" ", "").lower()
+    return needle in title
+
+
+def _mentions(item: dict, name: str) -> bool:  # 하위 호환 (테스트용)
+    return _title_mentions(item, name)
 
 
 def select_recent(
@@ -81,8 +109,11 @@ def select_recent(
         dt = parse_pubdate(item.get("pubDate", ""))
         if dt is None or dt < cutoff:
             continue
-        if require and not _mentions(item, require):
+        title = clean_title(item.get("title", "") or "")
+        if require and not _title_mentions(item, require):
             continue
+        if require and _has_market_tag(title):
+            continue  # 종목명이 제목에 있어도 시황 기사면 제외
         link = item.get("originallink") or item.get("link") or ""
         out.append(
             {
@@ -111,8 +142,9 @@ async def fetch_news(
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(
                 NAVER_NEWS_URL,
-                # 종목명 단독 검색은 오탐이 많아(예: "NAVER") 주가 맥락을 붙인다
-                params={"query": f"{query} 주가", "display": 50, "sort": "date"},
+                # 종목명 단독 검색은 오탐이 많아 주가 맥락을 붙이고
+                # 관련도(sim) 우선 정렬로 회사 관련 기사가 상위로 오게 한다
+                params={"query": f"{query} 주가", "display": 60, "sort": "sim"},
                 headers={
                     "X-Naver-Client-Id": client_id,
                     "X-Naver-Client-Secret": client_secret,

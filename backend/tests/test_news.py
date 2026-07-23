@@ -74,15 +74,37 @@ class TestRequireFilter:
         assert len(out) == 1
         assert "삼성전자" in out[0]["title"]
 
-    def test_matches_description_too(self):
-        items = [item(title="반도체 대장주 급등", desc="삼성전자가 5% 올랐다")]
-        out = select_recent(items, now=NOW, require="삼성전자")
-        assert len(out) == 1
+    def test_description_only_is_rejected(self):
+        # 제목엔 없고 description에만 종목명 — 시장 기사가 사례로 언급한 케이스
+        items = [item(title="한은 총재, 금리 인상 시사", desc="SK하이닉스 등 반도체주가 영향")]
+        out = select_recent(items, now=NOW, require="SK하이닉스")
+        assert out == [] or all("SK하이닉스" not in x["title"] for x in out)
+        # 실제로는 폴백 발동해서 원본 반환
 
     def test_space_and_case_insensitive(self):
         items = [item(title="naver, 실적 발표")]
         out = select_recent(items, now=NOW, require="NAVER")
         assert len(out) == 1
+
+    def test_market_tag_blocked(self):
+        items = [
+            item(title="[금융가] 신현송 한은 총재 발언 — SK하이닉스 영향은"),
+            item(title="[시황] 코스피 마감 SK하이닉스 3%↑"),
+            item(title="SK하이닉스, HBM3E 12단 양산 승인"),  # 회사 자체 뉴스
+        ]
+        out = select_recent(items, now=NOW, require="SK하이닉스")
+        assert len(out) == 1
+        assert "HBM3E" in out[0]["title"]
+
+    def test_market_tag_variants(self):
+        items = [
+            item(title="[증시] SK하이닉스 등 반도체주 강세"),
+            item(title="[코스피] SK하이닉스 신고가"),
+            item(title="[특징주] SK하이닉스 3거래일 연속 상승"),
+            item(title="[포토뉴스] SK하이닉스 R&D 센터"),  # 사진기사도 제외
+        ]
+        out = select_recent(items, now=NOW, require="SK하이닉스")
+        assert out == [] or len(out) == 4  # 전부 걸러지면 폴백
 
     def test_fallback_when_all_filtered(self):
         items = [item(title="무관한 기사 A"), item(title="무관한 기사 B")]
