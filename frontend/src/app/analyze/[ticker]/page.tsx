@@ -6,6 +6,7 @@ import { ProbabilityGauge } from "@/components/ProbabilityGauge";
 import { SummaryCard } from "@/components/SummaryCard";
 import { MAStatusGrid } from "@/components/MAStatusGrid";
 import { SignalCards } from "@/components/SignalCards";
+import { StructurePanel } from "@/components/StructurePanel";
 import { CandleChart } from "@/components/CandleChart";
 import { ReasonPanel } from "@/components/ReasonPanel";
 import { NewsGrid } from "@/components/NewsGrid";
@@ -36,7 +37,12 @@ export default async function AnalyzePage({
           </div>
         </div>
 
-        {/* Row 2: 발동 신호 */}
+        {/* Row 2: 차트 구조 분석 (매물대·추세·캔들·변동성) */}
+        {data.structure && (
+          <StructurePanel structure={data.structure} currentPrice={data.currentPrice} />
+        )}
+
+        {/* Row 3: 발동 신호 */}
         <SignalCards data={data} />
 
         {/* Row 3: 캔들 차트 */}

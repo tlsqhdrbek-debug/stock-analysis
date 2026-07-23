@@ -60,13 +60,32 @@ export function AISummary({ ticker }: { ticker: string }) {
         </div>
       )}
       {state === "done" && text && (
-        <div className="space-y-2.5">
-          {text.split(/\n{2,}/).map((para, i) => (
-            <p key={i} className="text-[13.5px] leading-[1.75] text-fg">
-              {para}
-            </p>
-          ))}
-          <div className="pt-1 text-[10px] text-fg-dim">
+        <div className="space-y-1.5">
+          {text.split("\n").map((raw, i) => {
+            const line = raw.trim();
+            if (!line) return null;
+            if (/^\[.+\]$/.test(line)) {
+              return (
+                <div key={i} className="pt-2.5 text-[11px] font-bold tracking-[0.08em] text-[#A78BFA] first:pt-0">
+                  {line.slice(1, -1)}
+                </div>
+              );
+            }
+            if (/^[•\-]/.test(line)) {
+              return (
+                <div key={i} className="flex gap-2 text-[13px] leading-[1.7] text-fg">
+                  <span className="text-[#A78BFA]">•</span>
+                  <span>{line.replace(/^[•\-]\s*/, "")}</span>
+                </div>
+              );
+            }
+            return (
+              <p key={i} className="text-[13.5px] leading-[1.7] text-fg">
+                {line}
+              </p>
+            );
+          })}
+          <div className="pt-2 text-[10px] text-fg-dim">
             AI가 생성한 요약으로 오류가 있을 수 있으며, 투자 추천이 아닙니다.
           </div>
         </div>

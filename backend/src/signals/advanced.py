@@ -268,6 +268,70 @@ def rsi_divergence_signal(closes: np.ndarray, lookback: int = 60) -> SignalResul
 
 # ── 멀티 컨펌 ────────────────────────────────────────────
 
+# ── 차트 구조 요약 (프론트 상태 패널·AI 프롬프트용) ──────
+
+
+def structure_payload(
+    opens: np.ndarray,
+    highs: np.ndarray,
+    lows: np.ndarray,
+    closes: np.ndarray,
+    volumes: np.ndarray,
+) -> dict:
+    """매물대·추세 채널·캔들·볼린저·다이버전스 상태를 구조화해 반환."""
+    cur = float(closes[-1])
+    levels = sr_levels(highs, lows)
+
+    def fmt(lv: float, n: int) -> dict:
+        return {"level": round(lv), "touches": n, "gapPct": round((lv / cur - 1) * 100, 1)}
+
+    sup = sorted([x for x in levels if x[0] < cur], key=lambda x: -x[0])[:2]
+    res = sorted([x for x in levels if x[0] >= cur], key=lambda x: x[0])[:2]
+
+    trend = None
+    n = 40
+    if len(closes) >= n:
+        y = closes[-n:]
+        x = np.arange(n, dtype=np.float64)
+        slope, intercept = np.polyfit(x, y, 1)
+        norm = slope * n / y.mean()
+        resid = y - (slope * x + intercept)
+        sd = float(resid.std())
+        dev = float(resid[-1]) / sd if sd > 0 else 0.0
+        mid = slope * (n - 1) + intercept
+        trend = {
+            "direction": "up" if norm > 0.02 else "down" if norm < -0.02 else "flat",
+            "slopePct": round(norm * 100, 1),
+            "channelUpper": round(float(mid + 2 * sd)),
+            "channelLower": round(float(mid - 2 * sd)),
+            "breakout": "down" if dev < -2 else "up" if dev > 2 else "none",
+        }
+
+    cndl = candle_signal(opens, highs, lows, closes, levels)
+    bb = bollinger_signal(closes)
+    dv = rsi_divergence_signal(closes)
+    return {
+        "supports": [fmt(*s) for s in sup],
+        "resistances": [fmt(*r) for r in res],
+        "trend": trend,
+        "candle": {
+            "name": cndl.label,
+            "desc": cndl.desc,
+            "direction": "bull" if cndl.score > 0 else "bear" if cndl.score < 0 else "neutral",
+            "nearSr": bool(cndl.meta.get("near_sr", False)),
+        },
+        "bollinger": {
+            "state": cndl_state if (cndl_state := bb.meta.get("card_type")) else "neutral",
+            "desc": bb.desc,
+            "direction": bb.meta.get("direction"),
+        },
+        "divergence": {
+            "state": "bearish" if dv.score < 0 else "bullish" if dv.score > 0 else "none",
+            "desc": dv.desc,
+        },
+    }
+
+
 _CONFIRM_KEYS = {
     "volume", "sr_level", "fake_breakout", "trend_channel", "channel_break",
     "arrangement", "cross_5_20", "cross_20_60", "cross_60_120",

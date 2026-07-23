@@ -110,6 +110,7 @@ class AnalyzeResponse(CamelModel):
 
     news: list[NewsItem]
     chart_data: ChartData
+    structure: dict | None = None  # 매물대·추세 채널·캔들·볼린저·다이버전스 상태
 
 
 class SearchHit(CamelModel):

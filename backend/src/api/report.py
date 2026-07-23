@@ -24,6 +24,7 @@ from src.schemas import (
     TimeframeMAStatus,
 )
 from src.scoring.score import ScoreResult, compute_probability, load_weights
+from src.signals.advanced import structure_payload
 from src.signals.evaluate import MA_PERIODS, SignalResult, compute_mas, evaluate_daily
 
 KST = timezone(timedelta(hours=9))
@@ -109,6 +110,7 @@ def build_response(
         bearish_reasons=ReasonGroup(technical=bear_tech, macro=bear_macro),
         news=news or [],
         chart_data=_chart_data(candles, mas),
+        structure=structure_payload(opens, highs, lows, closes, volumes),
     )
 
 

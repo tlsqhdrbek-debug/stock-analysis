@@ -79,6 +79,39 @@ export interface ChartData {
   ma: Record<string, (number | null)[]>; // { "5": [...], "10": [...], ... }
 }
 
+export interface SRLevel {
+  level: number;
+  touches: number;
+  gapPct: number; // 현재가 대비 %
+}
+
+export interface Structure {
+  supports: SRLevel[];
+  resistances: SRLevel[];
+  trend: {
+    direction: "up" | "down" | "flat";
+    slopePct: number;
+    channelUpper: number;
+    channelLower: number;
+    breakout: "none" | "up" | "down";
+  } | null;
+  candle: {
+    name: string;
+    desc: string;
+    direction: "bull" | "bear" | "neutral";
+    nearSr: boolean;
+  };
+  bollinger: {
+    state: string; // bb_squeeze | bb_expansion | neutral
+    desc: string;
+    direction?: "up" | "down" | null;
+  };
+  divergence: {
+    state: "bearish" | "bullish" | "none";
+    desc: string;
+  };
+}
+
 export interface AnalyzeResponse {
   ticker: string;
   name: string;
@@ -118,4 +151,5 @@ export interface AnalyzeResponse {
 
   news: NewsItem[];
   chartData: ChartData;
+  structure?: Structure | null;
 }

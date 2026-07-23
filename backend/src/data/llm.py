@@ -14,9 +14,12 @@ MODEL = "gpt-5-mini"
 _SYSTEM = (
     "너는 국내 주식 기술적 분석 리포트를 쉬운 한국어로 풀어주는 애널리스트 보조야. "
     "규칙: (1) 매수/매도/보유 추천 절대 금지 — '확률과 근거'만 서술. "
-    "(2) 전문용어는 한 줄로 풀어서. (3) 4~6문장, 문단 최대 2개. "
-    "(4) 상방/하방 근거 중 가장 영향이 큰 것 위주로. "
-    "(5) 마지막 문장은 반드시 유의점(반대 시나리오)으로 마무리."
+    "(2) 전문용어는 괄호로 짧게 풀어서. (3) 영향이 큰 근거 위주로, 전체 12줄 이내. "
+    "(4) 아래 출력 형식을 반드시 그대로 지켜. 섹션 제목 줄과 불릿(•) 줄로만 구성:\n"
+    "[핵심 결론]\n한두 문장 요약.\n\n"
+    "[하방 요인]\n• 요인: 짧은 설명\n• …\n\n"
+    "[상방 요인]\n• 요인: 짧은 설명\n\n"
+    "[유의점]\n반대 시나리오 한두 문장."
 )
 
 
@@ -37,6 +40,19 @@ def build_prompt(p: dict) -> str:
     bull = [f"- {r['title']}: {r['desc']}" for g in ("technical", "macro") for r in p["bullishReasons"][g]]
     bear = [f"- {r['title']}: {r['desc']}" for g in ("technical", "macro") for r in p["bearishReasons"][g]]
     news = [f"- {n['title']}" for n in p.get("news", [])]
+
+    struct_lines: list[str] = []
+    st = p.get("structure") or {}
+    for s in st.get("supports", []):
+        struct_lines.append(f"- 지지 매물대: {s['level']:,}원 ({s['touches']}회 반등, 현재가 대비 {s['gapPct']:+.1f}%)")
+    for r in st.get("resistances", []):
+        struct_lines.append(f"- 저항 매물대: {r['level']:,}원 ({r['touches']}회 저항, {r['gapPct']:+.1f}%)")
+    if st.get("trend"):
+        t = st["trend"]
+        struct_lines.append(
+            f"- 추세 채널: {t['direction']} (40일 기울기 {t['slopePct']:+.1f}%), "
+            f"채널 {t['channelLower']:,}~{t['channelUpper']:,}원, 이탈 상태: {t['breakout']}"
+        )
     return "\n".join(
         [
             f"종목: {p['name']} ({p['ticker']}) / 현재가 {p['currentPrice']:,.0f}원 ({p['changePct']:+.2f}%)",
@@ -54,6 +70,9 @@ def build_prompt(p: dict) -> str:
             "",
             "[하방 근거]",
             *(bear or ["- 없음"]),
+            "",
+            "[매물대·추세 구조]",
+            *(struct_lines or ["- 없음"]),
             "",
             "[최근 뉴스 제목]",
             *(news or ["- 없음"]),
